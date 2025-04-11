@@ -6,43 +6,44 @@
 
 import streamlit as st 
 import pandas as pd 
-import seaborn as sns 
 
 
 
 CON = 'sqlite:///database.db'
 query = 'select * from '
-status = 'replace'
+status = 'append' 
 
 pd.read_csv('hotel_index.csv').to_sql('hotel_index',con=CON,if_exists='replace')
 ############################################################# UPLOADER PAGE #############################################################
 
 # UPLOADER PAGE: 
 def uploader_reservation(): 
+    encoding =  st.selectbox('Select encoding',options=['utf-16','utf-8'])
     with st.form(key='uploader_form'): 
         file = st.file_uploader('Uploder')
         submit = st.form_submit_button('Upload')
         if submit:
             hotel_index = pd.read_sql('select * from hotel_index','sqlite:///database.db')
-            df = pd.read_csv(file,skiprows=1,encoding='utf-16',index_col=False).to_sql('booking_date',con=CON,if_exists=status)
+            df = pd.read_csv(file,skiprows=1,encoding=encoding,index_col=False).to_sql('booking_date',con=CON,if_exists=status)
             df = pd.read_sql(query+'booking_date',con=CON)
             df.drop_duplicates(keep='last')
             df = pd.merge(df,hotel_index[['Property','Company']],how='left').to_sql('booking_date',con=CON,if_exists=status)
-            st.success('Sucessfully Uploaded & Updated.')
+            st.success('Sucessfully Uploaded & Updated.✅')
             st.write(df)
 
 def uploader_stays():
+    encoding = st.selectbox('Select encoding',options=['utf-16','utf-8'])
     with st.form(key='uploader_form'): 
         file = st.file_uploader('Uploder')
         submit = st.form_submit_button('Upload')
         if submit:
             hotel_index = pd.read_sql('select * from hotel_index','sqlite:///database.db')
-            df = pd.read_csv(file,skiprows=1,encoding='utf-16',index_col=False).to_sql('staying_date',con=CON,if_exists=status)
+            df = pd.read_csv(file,skiprows=1,encoding=encoding,index_col=False).to_sql('staying_date',con=CON,if_exists=status)
             df = pd.read_sql(query+'staying_date',con=CON)
             df.drop_duplicates(keep='last')
             df = pd.merge(df,hotel_index[['Property','Company']],how='left').to_sql('staying_date',con=CON,if_exists=status)
-            st.success('Sucessfully Uploaded & Updated.')
-            st.write(df)
+            st.success('Sucessfully Uploaded & Updated.✅')
+            
     
 
 def viewer(): 
@@ -51,27 +52,31 @@ def viewer():
     st.write(df_booking_date[df_booking_date['Property'] == filter])
 
 ################################################## DATAFRAMES #######################################################
-hotel_index =  pd.read_sql('select * from hotel_index',con= 'sqlite:///database.db')
-booking_date = pd.read_sql('select * from booking_date',con= 'sqlite:///database.db')
-staying_date = pd.read_sql('select * from staying_date',con= 'sqlite:///database.db')   
-booking_date['Booking Date and Time'] = pd.to_datetime(booking_date['Booking Date and Time'])
-staying_date['Check In'] = pd.to_datetime(staying_date['Check In'])
-staying_date['Check Out'] = pd.to_datetime(staying_date['Check Out'])
+
+
 
 
 ################################################# DASHBOARD #######################################################
 def dashboard():
+    hotel_index =  pd.read_sql('select * from hotel_index',con= 'sqlite:///database.db')
+    booking_date = pd.read_sql('select * from booking_date',con= 'sqlite:///database.db')
+    staying_date = pd.read_sql('select * from staying_date',con= 'sqlite:///database.db')   
+    booking_date['Booking Date and Time'] = pd.to_datetime(booking_date['Booking Date and Time'])
+    staying_date['Check In'] = pd.to_datetime(staying_date['Check In'])
+    staying_date['Check Out'] = pd.to_datetime(staying_date['Check Out'])
     b_df = booking_date
     b_df = b_df[['Property','Booking Date and Time']].drop_duplicates(subset=['Property','Booking Date and Time'],keep='first')
     b_df = b_df.sort_values(by=['Property','Booking Date and Time'])
     s_df = staying_date[['Property','Check In', 'Check Out']]
-    def count_occurrences(row):
-    # Filter s_df where property matches
-        mask = (s_df['Property'] == row['Property']) & \
-            (s_df['Check In'] <= row['Booking Date and Time']) & \
-            (s_df['Check Out'] > row['Booking Date and Time'])
-        
-        return mask.sum() 
+
+    def count_occurrences(s_df,row):
+        # Filter s_df where property matches
+            mask = (s_df['Property'] == row['Property']) & \
+                (s_df['Check In'] <= row['Booking Date and Time']) & \
+                (s_df['Check Out'] > row['Booking Date and Time'])
+            
+            return mask.sum() 
+
     # Apply function to each row
     b_df['Stays Count'] = b_df.apply(count_occurrences, axis=1)
 
